@@ -1,4 +1,6 @@
 global using Northwind.Classes;
+global using Northwind.Services.NorthwindService;
+global using Northwind.Services.OrderService;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,6 +12,9 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<NorthwindContext>();
 builder.Services.AddAutoMapper(typeof(Program).Assembly);
+builder.Services.AddScoped<CustomerInterface, CustomerService>();
+builder.Services.AddScoped<OrderInterface, OrderService>();
+
 
 var app = builder.Build();
 

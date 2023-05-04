@@ -1,133 +1,104 @@
 ﻿using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Northwind.Classes;
+using Northwind.Services.NorthwindService;
 
 namespace Northwind.Controllers
 {
     [ApiController]
-    [Route("[controller]")]
-
     // initialize DbContext and Mapper
-    public class CustomerController : ControllerBase
+    public class CustomersController : ControllerBase
     {
         private readonly NorthwindContext _context;
 
         private readonly IMapper _mapper;
 
+        private readonly CustomerInterface customerInterface;
 
-        public CustomerController(NorthwindContext context,IMapper mapper)
+
+        public CustomersController(NorthwindContext context, IMapper mapper, CustomerInterface customerInterface)
         {
             _context = context;
             _mapper = mapper;
+            this.customerInterface = customerInterface;
         }
 
 
-        [HttpGet("/customers/customerid/{id}")] // GET A Single Customer using KEY id
+        [HttpGet("/api/customers/customerid/{id}")] // GET A Single Customer using KEY id
         public async Task<ActionResult<CustomerDTO>> GetCustomer(string id)
         {
-            if (id.Length != 5)
+            var response = await customerInterface.GetCustomer(id);
+            if (response.Success)
             {
-                return BadRequest("ID should have a length of 5.");
+                return Ok(response.Data);
             }
-            var result = await _context.Customers.FindAsync(id);
+            return BadRequest(response.Message);
 
-            if (result is not null)
-            {
-                return Ok(_mapper.Map<CustomerDTO>(result));
-            }
-            else 
-            {
-                return NotFound($"Customer with id {id} not found."); 
-            }
         }
 
-        [HttpGet("/customers")] // GET All Customers
+        [HttpGet("/api/customers")] // GET All Customers
         public async Task<ActionResult<List<CustomerDTO>>> GetCustomers()
         {
-            return await _context.Customers.Select( c => _mapper.Map<CustomerDTO>(c)).ToListAsync();
+            var response = await customerInterface.GetCustomers();
+            return Ok(response.Data);
         }
 
-        [HttpGet("/customers/companyName/{companyName}")] // GET Customer(s) based on company name
+        [HttpGet("/api/customers/companyName/{companyName}")] // GET Customer(s) based on company name
         public async Task<ActionResult<List<CustomerDTO>>> GetCustomersByCompany(string companyName)
         {
-            var result = await _context.Customers.Where(c=> c.CompanyName.Contains(companyName)).ToListAsync();
-            var DTOresult = result.Select(c => _mapper.Map<CustomerDTO>(c)).ToList();
+            var result = await customerInterface.GetCustomersByCompany(companyName);
 
-            if (DTOresult.Count>0)
+            if (result.Success)
             {
-                return Ok(DTOresult);
+                return Ok(result.Data);
             }
             else
             {
-                return NotFound($"Customers that work at company {companyName} not found.");
+                return NotFound(result.Message);
             }
         }
 
-        [HttpPost("/customers")] // POST Customer
+        [HttpPost("/api/customers")] // POST Customer
 
         public async Task<ActionResult<CustomerDTO>> PostCustomer(CustomerDTO cust)
         {
-            if (cust.CustomerId.Length !=5)
+            var result = await customerInterface.PostCustomer(cust);
+            if (result.Success)
             {
-                return BadRequest("ID should have a length of 5.");
+                return Ok(result.Data);
             }
-            // wrong input will be handled by the Database restraints
-            _context.Customers.Add(_mapper.Map<Customer>(cust));
-            await _context.SaveChangesAsync();
-            return Ok(cust);
+            else
+            {
+                return BadRequest(result.Message);
+            }
         }
 
-        [HttpPut("/customers")] // PUT Customer
+        [HttpPut("/api/customers")] // PUT Customer
         public async Task<ActionResult<CustomerDTO>> PutCustomer(CustomerDTO cust)
         {
-            if (cust.CustomerId.Length != 5)
+            var result = await customerInterface.PutCustomer(cust);
+            if (result.Success)
             {
-                return BadRequest("ID should have a length of 5.");
-            }
-
-            var result = await _context.Customers.FindAsync(cust.CustomerId);
-            if (result != null)
-            {
-                result.CompanyName = cust.CompanyName;
-                result.ContactName = cust.ContactName;
-                result.ContactTitle = cust.ContactTitle;
-                result.Address = cust.Address;
-                result.City = cust.City;
-                result.Region = cust.Region;
-                result.PostalCode = cust.PostalCode;
-                result.Country = cust.Country;
-                result.Phone = cust.Phone;
-                result.Fax = cust.Fax;
-
-                await _context.SaveChangesAsync();
-                return Ok(_mapper.Map<CustomerDTO>(result));
+                return Ok(result.Data);
             }
             else
             {
-                return NotFound($"Customer with id {cust.CustomerId} not found.");
+                return BadRequest(result.Message);
             }
+
         }
 
-        [HttpDelete("/customers/customerid/{id}")] // DELETE A Single Customer using KEY id
+        [HttpDelete("/api/customers/customerid/{id}")] // DELETE A Single Customer using KEY id
         public async Task<ActionResult> DeleteCustomer(string id)
         {
-            if (id.Length != 5)
+            var result = await customerInterface.DeleteCustomer(id);
+            if (result.Success)
             {
-                return BadRequest("ID should have a length of 5.");
-            }
-
-            var result = await _context.Customers.FindAsync(id);
-
-            if (result is not null)
-            {
-                _context.Customers.Remove(result);
-                await _context.SaveChangesAsync();
-                return Ok();
+                return Ok(result.Data);
             }
             else
             {
-                return NotFound($"Customer with id {id} not found.");
+                return BadRequest(result.Message);
             }
         }
 

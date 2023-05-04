@@ -1,116 +1,93 @@
 ﻿using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Northwind.Classes;
 
 namespace Northwind.Controllers
 {
     [ApiController]
-    [Route("[controller]")]
-
     // initialize DbContext and Mapper
-    public class OrderController : ControllerBase
+    public class OrdersController : ControllerBase
     {
         private readonly NorthwindContext _context;
 
         private readonly IMapper _mapper;
 
+        private readonly OrderInterface orderInterface;
 
-        public OrderController(NorthwindContext context,IMapper mapper)
+        public OrdersController(NorthwindContext context,IMapper mapper, OrderInterface orderInterface)
         {
             _context = context;
             _mapper = mapper;
+            this.orderInterface = orderInterface;
         }
 
-        [HttpGet("/orders/orderid/{id}")] // GET A Single Order using the KEY id
+        [HttpGet("/api/orders/orderid/{id}")] // GET A Single Order using the KEY id
         public async Task<ActionResult<OrderDTO>> GetOrder(int id)
         {
-            var result = await _context.Orders.FindAsync(id);
-
-            if (result is not null)
+            var result = await orderInterface.GetOrder(id);
+            if (result.Success)
             {
-                return Ok(_mapper.Map<OrderDTO>(result));
+                return Ok(result.Data);
             }
-            else 
-            {
-                return NotFound($"Order with id {id} not found."); 
-            }
+            return BadRequest(result.Message);
         }
 
-        [HttpGet("/orders/getByCustomer/{customerId}")] // GET Order(s) by CustomerID
+        [HttpGet("/api/orders/getByCustomer/{customerId}")] // GET Order(s) by CustomerID
         public async Task<ActionResult<List<OrderDTO>>> GetOrderByCustomer(string customerId)
         {
-            if (customerId.Length != 5)
+            var result = await orderInterface.GetOrderByCustomer(customerId);
+            if (result.Success)
             {
-                return BadRequest("CustomerID should have a length of 5.");
+                return Ok(result.Data);
             }
-            var result = await _context.Orders.Where( o=> o.CustomerId == customerId).ToListAsync();
-            var DTOresult = result.Select(o => _mapper.Map<OrderDTO>(o)).ToList();
-
-            if (result.Count>0)
-            {
-                return Ok(DTOresult);
-            }
-            else
-            {
-                return NotFound($"Order with customerID {customerId} not found.");
-            }
+            return BadRequest(result.Message);
         }
 
-        [HttpGet("/orders/getByCustomerAndEmployee/{customerId}/{employeeId}")] // GET Order(s) by CustomerID
-        public async Task<ActionResult<List<OrderDTO>>> GetOrderByCustomer(string customerId,int employeeId)
+        [HttpGet("/api/orders/getByCustomerAndEmployee/{customerId}/{employeeId}")] // GET Order(s) by CustomerID
+        public async Task<ActionResult<List<OrderDTO>>> GetOrderByCustomerAndEmployee(string customerId,int employeeId)
         {
-            if (customerId.Length != 5)
+            var result = await orderInterface.GetOrderByCustomerAndEmployee(customerId,employeeId);
+            if (result.Success)
             {
-                return BadRequest("CustomerID should have a length of 5.");
+                return Ok(result.Data);
             }
-
-            var result = await _context.Orders.Where(o => o.CustomerId == customerId && o.EmployeeId == employeeId ).ToListAsync();
-            var DTOresult = result.Select( o=> _mapper.Map<OrderDTO>(o) ).ToList();
-
-            if (DTOresult.Count > 0)
-            {
-                return Ok(DTOresult);
-            }
-            else
-            {
-                return NotFound($"Order with customerID {customerId} and employeeID {employeeId} not found.");
-            }
+            return BadRequest(result.Message);
         }
 
-        [HttpGet("/orders")] // GET All Orders
-        public async Task<ActionResult<List<OrderDTO>>> GetOrders()
+        [HttpGet("/api/orders")] // GET All Orders
+        public async Task<ActionResult<List<Order>>> GetOrders()
         {
-            return await _context.Orders.Take(100).Select(c=> _mapper.Map<OrderDTO>(c)).ToListAsync();
+            var result = await orderInterface.GetOrders();
+            return result.Data;  
         }
 
-        [HttpPost("/orders")] // POST Order
-        public async Task<ActionResult<OrderDTO>> PostCustomer(OrderDTO ord)
+        [HttpPost("/api/orders")] // POST Order
+        public async Task<ActionResult<Order>> PostCustomer(OrderDTO ord)
         {
-            // wrong input will be handled by the Database restraints
-            _context.Orders.Add(_mapper.Map<Order>(ord));
-            await _context.SaveChangesAsync();
-            return Ok(ord);
+            try
+            {
+                var result = await orderInterface.PostCustomer(ord);
+                return Ok(result);
+            }
+            catch
+            {
+                var response = new ServiceResponse<OrderDTO>();
+                response.Message = "Failed to create order";
+                response.Success = false;
+                return BadRequest(response);
+            }
         }
 
 
-        [HttpDelete("/orders/orderid/{id}")] // DELETE A Single Order using KEY id
+        [HttpDelete("/api/orders/orderid/{id}")] // DELETE A Single Order using KEY id
         public async Task<ActionResult> DeleteOrder(int id)
         {
-            var result = await _context.Orders.FindAsync(id);
-
-            if (result is not null)
+            var result = await orderInterface.DeleteOrder(id);
+            if (result.Success)
             {
-                _context.Orders.Remove(result);
-                await _context.SaveChangesAsync();
-                return Ok();
+                return Ok(result.Data);
             }
-            else
-            {
-                return NotFound($"Order with id {id} not found.");
-            }
+            return BadRequest(result.Message);
         }
-
     }
-
 }
